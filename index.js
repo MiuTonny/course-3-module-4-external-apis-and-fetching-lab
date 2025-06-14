@@ -35,3 +35,11 @@
 
 // Event Listener for Fetch Button
 // - Attach the main event listener to the button to start the process
+
+const { fetchWeatherData } = require("./weather");
+
+document.getElementById("fetch-weather").addEventListener("click", () => {
+  const city = document.getElementById("city-input").value;
+  fetchWeatherData(city);
+});
+

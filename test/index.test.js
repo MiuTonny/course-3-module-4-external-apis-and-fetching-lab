@@ -2,39 +2,63 @@
  * @jest-environment jsdom
  */
 
-const { fetchWeatherData, displayWeather, displayError } = require('../index')
+const {
+  fetchWeatherData,
+  displayWeather,
+  displayError,
+} = require('../weather')
 
 describe('fetchWeatherData', () => {
   beforeEach(() => {
     global.fetch = jest.fn()
+    document.body.innerHTML = `
+      <div id="weather-display"></div>
+      <div id="error-message" class="hidden"></div>
+    `
   })
 
   it('should fetch weather data for a valid city', async () => {
-    const mockResponse = {
-      name: 'New York',
-      main: { temp: 298.15, humidity: 50 },
-      weather: [{ description: 'clear sky' }],
+    const mockGeoResponse = {
+      results: [{ latitude: 40.7128, longitude: -74.006 }],
     }
 
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockResponse,
-    })
+    const mockWeatherResponse = {
+      current_weather: {
+        temperature: 25,
+        windspeed: 10,
+        winddirection: 180,
+        time: "2025-06-14T18:00",
+      },
+    }
 
-    const data = await fetchWeatherData('New York')
-    expect(data.name).toBe('New York')
-    expect(data.main.temp).toBe(298.15)
-    expect(data.weather[0].description).toBe('clear sky')
+    fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockGeoResponse,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockWeatherResponse,
+      })
+
+    await fetchWeatherData('New York')
+
+    const weatherDisplay = document.getElementById('weather-display')
+    expect(weatherDisplay.innerHTML).toContain('Temperature:')
+    expect(weatherDisplay.innerHTML).toContain('25')
+    expect(weatherDisplay.innerHTML).toContain('km/h')
   })
 
   it('should throw an error for an invalid city', async () => {
+    const mockGeoResponse = { results: [] }
+
     fetch.mockResolvedValueOnce({
-      ok: false,
-      statusText: 'Not Found',
+      ok: true,
+      json: async () => mockGeoResponse,
     })
 
     await expect(fetchWeatherData('InvalidCity')).rejects.toThrow(
-      'City not found'
+      'City not found.'
     )
   })
 
@@ -55,17 +79,20 @@ describe('displayWeather', () => {
 
   it('should display weather data on the page', () => {
     const mockData = {
-      name: 'New York',
-      main: { temp: 298.15, humidity: 50 },
-      weather: [{ description: 'clear sky' }],
+      current_weather: {
+        temperature: 25,
+        windspeed: 10,
+        winddirection: 180,
+        time: "2025-06-14T18:00",
+      },
     }
 
     displayWeather(mockData)
 
-    expect(weatherDisplay.innerHTML).toContain('New York')
-    expect(weatherDisplay.innerHTML).toContain('25°C') // 298.15 Kelvin to Celsius
-    expect(weatherDisplay.innerHTML).toContain('50%')
-    expect(weatherDisplay.innerHTML).toContain('clear sky')
+    expect(weatherDisplay.innerHTML).toContain('Temperature:')
+    expect(weatherDisplay.innerHTML).toContain('25')
+    expect(weatherDisplay.innerHTML).toContain('km/h')
+    expect(weatherDisplay.innerHTML).toContain('2025')
   })
 })
 
@@ -78,14 +105,14 @@ describe('displayError', () => {
   })
 
   it('should display an error message', () => {
-    displayError('City not found')
+    displayError('City not found.')
 
-    expect(errorMessage.textContent).toBe('City not found')
+    expect(errorMessage.textContent).toBe('City not found.')
     expect(errorMessage.classList.contains('hidden')).toBe(false)
   })
 
   it('should replace any existing error message', () => {
-    errorMessage.textContent = 'Previous error'
+    errorMessage.textContent = 'Old message'
     displayError('New error occurred')
 
     expect(errorMessage.textContent).toBe('New error occurred')
